@@ -4,7 +4,7 @@ export type LayerId = "tracing" | "building" | "platform";
 
 export type NodeKind = "service" | "database" | "queue" | "gateway" | "cache";
 
-export type HealthStatus = "healthy" | "degraded" | "critical" | "unknown";
+export type HealthStatus = "healthy" | "degraded" | "critical" | "warning" | "unknown";
 export type DeploymentStatus = "running" | "deploying" | "failed" | "pending";
 
 export interface TeamInfo {
