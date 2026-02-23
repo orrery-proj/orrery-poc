@@ -73,6 +73,7 @@ export const MyNode = memo(({ data }: NodeProps<SystemNodeData>) => { ... });
 
 - All components must be **function components**. No class components.
 - **Do not use `memo()`, `useCallback()`, or `useMemo()` as manual performance optimizations.** The React Compiler (`babel-plugin-react-compiler`) is enabled and handles all memoization automatically during the build. Adding them manually is redundant noise and will trigger a compiler warning.
+- **`useEffect` for side effects, never `useMemo`.** If code calls a state setter, it is a side effect — put it in `useEffect`. `useMemo` runs during render; calling `setState` inside it triggers an immediate re-render, creating an infinite loop.
 - **Hooks rules**: keep hooks at the top level; no conditional hooks; extract multi-line hook logic into `src/hooks/`.
 - Keep components **single-responsibility**. If a component file exceeds ~250 lines, it's doing too much — split it.
 - Colocate sub-components in the same file only if they are never used elsewhere. Otherwise, give them their own file.
@@ -238,6 +239,7 @@ docs: update README with semantic zoom roadmap section
 | Do not | Because |
 |---|---|
 | Use `memo()`, `useCallback()`, or `useMemo()` for performance | The React Compiler handles all memoization automatically |
+| Call a state setter inside `useMemo` | `useMemo` runs during render — state updates during render = infinite loop. Use `useEffect`. |
 | Add a backend, server, or API client | This is a hardcoded PoC by design |
 | Import from `src/data/` inside components | Violates the data/UI separation contract |
 | Define `nodeTypes` / `edgeTypes` inside a component | Causes React Flow to remount all nodes on every render |

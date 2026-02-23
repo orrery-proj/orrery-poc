@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -23,63 +23,50 @@ import type { SystemNodeData } from "@/data/types";
 
 type SystemNodeType = Node<SystemNodeData>;
 
-const nodeTypes = {
-  system: SystemNodeComponent,
-};
-
-const edgeTypes = {
-  dataflow: DataFlowEdge,
-  ghost: GhostEdge,
-};
-
+// Defined outside the component so the reference is stable across renders.
+const nodeTypes = { system: SystemNodeComponent };
+const edgeTypes = { dataflow: DataFlowEdge, ghost: GhostEdge };
 const proOptions = { hideAttribution: true };
+
+const bgColors = {
+  tracing: "oklch(0.78 0.15 200 / 0.15)",
+  building: "oklch(0.80 0.16 80 / 0.10)",
+  platform: "oklch(0.77 0.15 165 / 0.12)",
+} as const;
 
 export function SystemCanvas() {
   useKeyboardShortcuts();
-  const { activeLayer, selectedNodeId, setSelectedNodeId, getNodes, getEdges } = useLayerStore();
 
-  const rawNodes = useMemo(() => getNodes(), [activeLayer, getNodes]);
-  const rawEdges = useMemo(() => getEdges(), [activeLayer, getEdges]);
+  const activeLayer = useLayerStore((s) => s.activeLayer);
+  const selectedNodeId = useLayerStore((s) => s.selectedNodeId);
+  const setSelectedNodeId = useLayerStore((s) => s.setSelectedNodeId);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(rawNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(rawEdges);
-
-  // Sync nodes/edges when layer changes
-  useMemo(() => {
-    setNodes(rawNodes);
-    setEdges(rawEdges);
-  }, [rawNodes, rawEdges, setNodes, setEdges]);
-
-  const onSelectionChange: OnSelectionChangeFunc = useCallback(
-    ({ nodes: selectedNodes }) => {
-      if (selectedNodes.length === 1) {
-        setSelectedNodeId(selectedNodes[0].id);
-      } else {
-        setSelectedNodeId(null);
-      }
-    },
-    [setSelectedNodeId],
+  // Initialize React Flow state with the initial layer's data.
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    useLayerStore.getState().getNodes(),
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    useLayerStore.getState().getEdges(),
   );
 
-  const onPaneClick = useCallback(() => {
-    setSelectedNodeId(null);
-  }, [setSelectedNodeId]);
+  // Sync canvas data whenever the active layer changes.
+  // useEffect is correct here — this is a side effect (updating React Flow
+  // internal state) that must run after render, not during it.
+  useEffect(() => {
+    const { getNodes, getEdges } = useLayerStore.getState();
+    setNodes(getNodes());
+    setEdges(getEdges());
+  }, [activeLayer, setNodes, setEdges]);
 
-  const bgColor = useMemo(() => {
-    switch (activeLayer) {
-      case "tracing":
-        return "oklch(0.78 0.15 200 / 0.15)";
-      case "building":
-        return "oklch(0.80 0.16 80 / 0.10)";
-      case "platform":
-        return "oklch(0.77 0.15 165 / 0.12)";
-    }
-  }, [activeLayer]);
+  const onSelectionChange: OnSelectionChangeFunc = ({ nodes: selected }) => {
+    setSelectedNodeId(selected.length === 1 ? selected[0].id : null);
+  };
 
-  const selectedNode = useMemo(
-    () => nodes.find((n) => n.id === selectedNodeId) as SystemNodeType | undefined,
-    [nodes, selectedNodeId],
-  );
+  const onPaneClick = () => setSelectedNodeId(null);
+
+  const selectedNode = nodes.find(
+    (n) => n.id === selectedNodeId,
+  ) as SystemNodeType | undefined;
 
   return (
     <div className="w-full h-full relative">
@@ -97,22 +84,17 @@ export function SystemCanvas() {
         proOptions={proOptions}
         minZoom={0.2}
         maxZoom={2}
-        defaultEdgeOptions={{
-          type: "dataflow",
-        }}
+        defaultEdgeOptions={{ type: "dataflow" }}
         className="!bg-background"
       >
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
           size={1}
-          color={bgColor}
+          color={bgColors[activeLayer]}
           className="transition-colors duration-700"
         />
-        <Controls
-          showInteractive={false}
-          className="!bottom-4 !right-4 !left-auto"
-        />
+        <Controls showInteractive={false} className="!bottom-4 !right-4 !left-auto" />
         <MiniMap
           nodeColor={() => "oklch(0.40 0.03 270)"}
           maskColor="oklch(0.08 0.01 270 / 0.85)"
