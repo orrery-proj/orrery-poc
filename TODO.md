@@ -38,7 +38,25 @@ Self-explanatory. cmd+k and be able to search ANYTHING
 
 Multiple users, collaborating in real-time. Implement a chat feature to facilitate communication and collaboration among team members.
 
+### I9 - Diff between envs
+
+Components are the same, environments changes. Quick and intuitive diff between SRD.
+
+### I10 - Kargo Plugin
+
+Autopromote or schedule autopromotions services, useful when inspecting the the diff between envs.
+
+## Design choices
+
+- SRD as representation of a resource node. Deployments to fine grained. 
+- Divide SRD resources by project / environment.
+- Inputs:
+  - db: link to an already deployed greptime db, self-deployed by us if not provided
+  - collector: optional, requires config from the user to set a new destination for the telemetries
+  - link to org for LLM inspection (?)
+
 ## Open questions
 
 - Layout: auto or manual?
-- how to massively improve performance
+- How to massively improve performance
+- Plugins? Conflicts with business model
