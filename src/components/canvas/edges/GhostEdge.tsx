@@ -1,4 +1,3 @@
-import { memo } from "react";
 import {
   BaseEdge,
   getBezierPath,
@@ -10,7 +9,7 @@ import type { SystemEdgeData } from "@/data/types";
 
 type SystemEdgeType = Edge<SystemEdgeData>;
 
-export const GhostEdge = memo(function GhostEdge({
+export function GhostEdge({
   id,
   sourceX,
   sourceY,
@@ -56,4 +55,4 @@ export const GhostEdge = memo(function GhostEdge({
       )}
     </>
   );
-});
+}

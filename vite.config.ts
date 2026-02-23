@@ -7,7 +7,16 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
-    react(),
+    react({
+      babel: {
+        plugins: [
+          // React Compiler must run first in the Babel pipeline.
+          // Automatically memoizes components and hooks — memo(), useCallback(),
+          // and useMemo() are no longer needed as manual optimizations.
+          ["babel-plugin-react-compiler"],
+        ],
+      },
+    }),
     tailwindcss(),
   ],
   resolve: {

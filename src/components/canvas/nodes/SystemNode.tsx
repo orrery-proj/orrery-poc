@@ -1,4 +1,3 @@
-import { memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import {
   Globe,
@@ -208,7 +207,7 @@ function PlatformOverlay({ data }: { data: SystemNodeData }) {
 
 type SystemNodeType = Node<SystemNodeData>;
 
-export const SystemNodeComponent = memo(function SystemNodeComponent({
+export function SystemNodeComponent({
   data,
   selected,
 }: NodeProps<SystemNodeType>) {
@@ -302,4 +301,4 @@ export const SystemNodeComponent = memo(function SystemNodeComponent({
       <Handle type="source" position={Position.Bottom} className="!bg-border !border-surface !w-2 !h-2" />
     </>
   );
-});
+}

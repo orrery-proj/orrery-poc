@@ -1,4 +1,3 @@
-import { memo } from "react";
 import {
   BaseEdge,
   getBezierPath,
@@ -12,7 +11,7 @@ import type { SystemEdgeData } from "@/data/types";
 
 type SystemEdgeType = Edge<SystemEdgeData>;
 
-export const DataFlowEdge = memo(function DataFlowEdge({
+export function DataFlowEdge({
   id,
   sourceX,
   sourceY,
@@ -141,4 +140,4 @@ export const DataFlowEdge = memo(function DataFlowEdge({
       </EdgeLabelRenderer>
     </>
   );
-});
+}

@@ -20,7 +20,7 @@ Example:
 
 ### Better zoom
 
-cc
+Enter the details of a node just by zooming into it. Create a small cue at a certain zoom level to suggest that the node is about to expand, also following the cursor position (two components in the screen, follow the one where the cursor is hovering at, block if none). If continued zooming, the node will expand showing the details. For example showing the features are smaller nodes inside the microservice, or showing the singular kafka topics between two microservices that has more than one.
 
 ### Relive event
 
@@ -41,3 +41,4 @@ Multiple users, collaborating in real-time. Implement a chat feature to facilita
 ## Open questions
 
 - Layout: auto or manual?
+- how to massively improve performance
