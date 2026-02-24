@@ -7,20 +7,31 @@ import {
 } from "@/data/system";
 import type { LayerId, SystemEdge, SystemNode } from "@/data/types";
 
+export interface NodeScreenRect {
+  h: number;
+  w: number;
+  x: number;
+  y: number;
+}
+
 interface LayerState {
   activeLayer: LayerId;
-  /** Node currently expanded by semantic zoom (null when none). */
-  expandedNodeId: string | null;
-  focusedNodeId: string | null;
+
+  enterFocusMode: (id: string) => void;
+  exitFocusMode: () => void;
+  /** Node currently in focus mode (null when none). */
+  focusModeInitialRect: NodeScreenRect | null;
+  /** IDs of nodes directly connected to the focused node (null when not in focus mode). */
+  focusModeNeighborIds: string[] | null;
+  focusModeNodeId: string | null;
   getEdges: () => SystemEdge[];
 
   getNodes: () => SystemNode[];
   hoveredNodeId: string | null;
   selectedNodeId: string | null;
-
   setActiveLayer: (layer: LayerId) => void;
-  setExpandedNodeId: (id: string | null) => void;
-  setFocusedNodeId: (id: string | null) => void;
+  setFocusModeInitialRect: (rect: NodeScreenRect | null) => void;
+  setFocusModeNeighborIds: (ids: string[] | null) => void;
   setHoveredNodeId: (id: string | null) => void;
   setSelectedNodeId: (id: string | null) => void;
   showDraftNodes: boolean;
@@ -29,15 +40,19 @@ interface LayerState {
 export const useLayerStore = create<LayerState>((set, get) => ({
   activeLayer: "tracing",
   selectedNodeId: null,
-  focusedNodeId: null,
-  expandedNodeId: null,
+  focusModeNodeId: null,
+  focusModeInitialRect: null,
+  focusModeNeighborIds: null,
   hoveredNodeId: null,
   showDraftNodes: true,
 
   setActiveLayer: (layer) => set({ activeLayer: layer, selectedNodeId: null }),
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
-  setFocusedNodeId: (id) => set({ focusedNodeId: id }),
-  setExpandedNodeId: (id) => set({ expandedNodeId: id }),
+  enterFocusMode: (id) => set({ focusModeNodeId: id }),
+  exitFocusMode: () =>
+    set({ focusModeNodeId: null, focusModeNeighborIds: null }),
+  setFocusModeInitialRect: (rect) => set({ focusModeInitialRect: rect }),
+  setFocusModeNeighborIds: (ids) => set({ focusModeNeighborIds: ids }),
   setHoveredNodeId: (id) => set({ hoveredNodeId: id }),
 
   getNodes: () => {

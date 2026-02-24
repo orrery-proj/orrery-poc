@@ -9,7 +9,9 @@ import {
   ReactFlow,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from "@xyflow/react";
+import { AnimatePresence } from "motion/react";
 import { useEffect, useRef } from "react";
 import "@xyflow/react/dist/style.css";
 import type { SystemNodeData } from "@/data/types";
@@ -20,12 +22,12 @@ import { NodeDetailPanel } from "../panels/node-detail-panel";
 import { CanvasHeader } from "./canvas-header";
 import { DataFlowEdge } from "./edges/data-flow-edge";
 import { GhostEdge } from "./edges/ghost-edge";
+import { FocusModeOverlay } from "./focus-overlay";
 import { SystemNodeComponent } from "./nodes/system-node";
 import { ZoomController } from "./zoom-controller";
 
 type SystemNodeType = Node<SystemNodeData>;
 
-// Defined outside the component so the reference is stable across renders.
 const nodeTypes = { system: SystemNodeComponent };
 const edgeTypes = { dataflow: DataFlowEdge, ghost: GhostEdge };
 const proOptions = { hideAttribution: true };
@@ -36,16 +38,165 @@ const bgColors = {
   platform: "oklch(0.77 0.15 165 / 0.12)",
 } as const;
 
+/**
+ * Projects a node's angle onto the viewport boundary rectangle and returns
+ * the scatter position (78% of boundary distance from the focused node center).
+ */
+function scatterPosition(
+  cx: number,
+  cy: number,
+  fx: number,
+  fy: number,
+  halfW: number,
+  halfH: number,
+  nw: number,
+  nh: number
+): { x: number; y: number } {
+  const angle = Math.atan2(cy - fy, cx - fx);
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const tx =
+    Math.abs(cosA) > 0.001 ? halfW / Math.abs(cosA) : Number.POSITIVE_INFINITY;
+  const ty =
+    Math.abs(sinA) > 0.001 ? halfH / Math.abs(sinA) : Number.POSITIVE_INFINITY;
+  const dist = Math.min(tx, ty) * 0.78;
+  return { x: fx + cosA * dist - nw / 2, y: fy + sinA * dist - nh / 2 };
+}
+
+/**
+ * Handles scatter/restore logic and fitView — rendered inside <ReactFlow>
+ * so it has access to the RF zustand context via useReactFlow().
+ *
+ * Scatter algorithm: project each node's angle onto the viewport boundary
+ * rectangle (post-pan centering), then place it at 78% of that distance so
+ * nodes peek visibly from the edges.
+ */
+function FocusController({
+  setNodes,
+}: {
+  setNodes: ReturnType<typeof useNodesState<SystemNodeType>>[1];
+}) {
+  const rf = useReactFlow();
+  const focusModeNodeId = useLayerStore((s) => s.focusModeNodeId);
+  const setFocusModeNeighborIds = useLayerStore(
+    (s) => s.setFocusModeNeighborIds
+  );
+  // originalPositionsRef: true pre-focus positions, set once per node when first scattered.
+  // Never overwritten on node switches so exit always restores correctly.
+  const originalPositionsRef = useRef<Record<string, { x: number; y: number }>>(
+    {}
+  );
+  const prevFocusModeRef = useRef(focusModeNodeId);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setNodes and rf are stable RF instances
+  useEffect(() => {
+    if (focusModeNodeId === null) {
+      // Capture positions before clearing the ref — the setNodes updater runs
+      // asynchronously during React's reconciliation, by which point .current
+      // would already be {} if we cleared it first.
+      const savedPositions = originalPositionsRef.current;
+      originalPositionsRef.current = {};
+      setNodes((nds) =>
+        nds.map((n) =>
+          savedPositions[n.id] ? { ...n, position: savedPositions[n.id] } : n
+        )
+      );
+      return;
+    }
+
+    // Compute scatter positions using current RF node state.
+    const allNodes = rf.getNodes();
+    const focusedNode = allNodes.find((n) => n.id === focusModeNodeId);
+    if (!focusedNode) {
+      return;
+    }
+
+    const fw = focusedNode.measured?.width ?? 220;
+    const fh = focusedNode.measured?.height ?? 160;
+    const fx = focusedNode.position.x + fw / 2;
+    const fy = focusedNode.position.y + fh / 2;
+
+    const { zoom } = rf.getViewport();
+    // Viewport half-dimensions in flow coordinates (after centering on focused node).
+    const halfW = window.innerWidth / zoom / 2;
+    const halfH = window.innerHeight / zoom / 2;
+
+    const newPositions: Record<string, { x: number; y: number }> = {};
+
+    for (const n of allNodes) {
+      if (n.id === focusModeNodeId) {
+        continue;
+      }
+      // Only save the original position the first time this node gets scattered.
+      // On subsequent node switches, the stored value remains the true original.
+      if (!originalPositionsRef.current[n.id]) {
+        originalPositionsRef.current[n.id] = { ...n.position };
+      }
+      const nw = n.measured?.width ?? 220;
+      const nh = n.measured?.height ?? 160;
+      newPositions[n.id] = scatterPosition(
+        n.position.x + nw / 2,
+        n.position.y + nh / 2,
+        fx,
+        fy,
+        halfW,
+        halfH,
+        nw,
+        nh
+      );
+    }
+
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === focusModeNodeId || !newPositions[n.id]
+          ? n
+          : { ...n, position: newPositions[n.id] }
+      )
+    );
+
+    // Compute neighbor IDs (nodes directly connected to the focused node).
+    const neighborIds = rf
+      .getEdges()
+      .filter(
+        (e) => e.source === focusModeNodeId || e.target === focusModeNodeId
+      )
+      .map((e) => (e.source === focusModeNodeId ? e.target : e.source));
+    setFocusModeNeighborIds(neighborIds);
+
+    // Pan viewport to center focused node (simultaneously with scatter animation).
+    rf.setViewport(
+      {
+        x: window.innerWidth / 2 - fx * zoom,
+        y: window.innerHeight / 2 - fy * zoom,
+        zoom,
+      },
+      { duration: 600 }
+    );
+  }, [focusModeNodeId]);
+
+  // fitView when exiting focus mode.
+  useEffect(() => {
+    if (prevFocusModeRef.current !== null && focusModeNodeId === null) {
+      rf.fitView({ padding: 0.15, duration: 500 });
+    }
+    prevFocusModeRef.current = focusModeNodeId;
+  }, [focusModeNodeId, rf]);
+
+  return null;
+}
+
 export function SystemCanvas() {
   useKeyboardShortcuts();
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const selectedNodeId = useLayerStore((s) => s.selectedNodeId);
   const setSelectedNodeId = useLayerStore((s) => s.setSelectedNodeId);
   const setHoveredNodeId = useLayerStore((s) => s.setHoveredNodeId);
+  const focusModeNodeId = useLayerStore((s) => s.focusModeNodeId);
+  const exitFocusMode = useLayerStore((s) => s.exitFocusMode);
 
-  // Initialize React Flow state with the initial layer's data.
+  const isInFocusMode = focusModeNodeId !== null;
+
   const [nodes, setNodes, onNodesChange] = useNodesState(
     useLayerStore.getState().getNodes()
   );
@@ -53,11 +204,6 @@ export function SystemCanvas() {
     useLayerStore.getState().getEdges()
   );
 
-  // Sync canvas data whenever the active layer changes.
-  // useEffect is correct here — this is a side effect (updating React Flow
-  // internal state) that must run after render, not during it.
-  // activeLayer is intentionally in deps to trigger re-sync on layer switch;
-  // data is read via getState() to avoid stale closures from store subscriptions.
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeLayer triggers re-sync; getState() avoids stale closures
   useEffect(() => {
     const { getNodes, getEdges } = useLayerStore.getState();
@@ -85,7 +231,7 @@ export function SystemCanvas() {
 
   return (
     <div className="relative h-full w-full">
-      <div className="h-full w-full" ref={containerRef}>
+      <div className="h-full w-full">
         <ReactFlow
           className="!bg-background"
           defaultEdgeOptions={{ type: "dataflow" }}
@@ -103,7 +249,11 @@ export function SystemCanvas() {
           onNodesChange={onNodesChange}
           onPaneClick={onPaneClick}
           onSelectionChange={onSelectionChange}
+          panOnDrag={!isInFocusMode}
+          panOnScroll={!isInFocusMode}
           proOptions={proOptions}
+          zoomOnDoubleClick={!isInFocusMode}
+          zoomOnScroll={!isInFocusMode}
         >
           <Background
             className="transition-colors duration-700"
@@ -124,18 +274,32 @@ export function SystemCanvas() {
             style={{ width: 160, height: 110 }}
             zoomable
           />
-          <ZoomController containerRef={containerRef} />
+          <ZoomController />
+          <FocusController setNodes={setNodes} />
         </ReactFlow>
       </div>
 
       <CanvasHeader />
       <BuildingToolbar />
-      {selectedNode && (
+      {!isInFocusMode && selectedNode && (
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNodeId(null)}
         />
       )}
+
+      {/* key=focusModeNodeId so AnimatePresence re-triggers on node switch */}
+      <AnimatePresence mode="wait">
+        {isInFocusMode && (
+          <FocusModeOverlay
+            allEdges={edges}
+            allNodes={nodes}
+            key={focusModeNodeId}
+            nodeId={focusModeNodeId}
+            onExit={exitFocusMode}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

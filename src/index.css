@@ -118,6 +118,12 @@ body,
 }
 
 /* React Flow overrides */
+
+/* Smooth scatter transition for focus mode */
+.react-flow__node {
+  transition: transform 0.6s cubic-bezier(0.32, 0, 0.67, 0);
+}
+
 .react-flow__background {
   background-color: var(--background) !important;
 }
@@ -205,18 +211,20 @@ body,
   }
 }
 
-/* Exit-cue breathing pulse: signals "zoom out a little more to leave focus mode" */
-@keyframes exit-cue-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px oklch(0.6 0.18 220 / 0.35),
-      0 0 40px oklch(0.6 0.18 220 / 0.12);
+/* Canvas edge draw-in: used by DataFlowEdge when entering focus mode */
+@keyframes edge-draw-in {
+  to {
+    stroke-dashoffset: 0;
   }
-  50% {
-    box-shadow:
-      0 0 0 2px oklch(0.65 0.15 220 / 0.55),
-      0 0 64px oklch(0.65 0.15 220 / 0.22);
+}
+
+/* Cue ring sweep: stroke-dashoffset animates from perimeter → 0 */
+@keyframes cue-sweep {
+  from {
+    stroke-dashoffset: 760;
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
 

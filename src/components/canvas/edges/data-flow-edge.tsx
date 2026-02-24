@@ -151,8 +151,20 @@ function EdgeMetrics({
   );
 }
 
+function edgeOpacity(isFocusModeDimmed: boolean, dimmed: boolean): number {
+  if (isFocusModeDimmed) {
+    return 0.04;
+  }
+  if (dimmed) {
+    return 0.15;
+  }
+  return 1;
+}
+
 export function DataFlowEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -163,6 +175,11 @@ export function DataFlowEdge({
   selected,
 }: EdgeProps<SystemEdgeType>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
+  const focusModeNodeId = useLayerStore((s) => s.focusModeNodeId);
+  const isFocusModeEdge =
+    focusModeNodeId !== null &&
+    (source === focusModeNodeId || target === focusModeNodeId);
+  const isFocusModeDimmed = focusModeNodeId !== null && !isFocusModeEdge;
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -194,6 +211,14 @@ export function DataFlowEdge({
   );
   const showMetrics = activeLayer === "platform" && platform;
 
+  const focusDrawStyle = isFocusModeEdge
+    ? {
+        strokeDasharray: 3000,
+        strokeDashoffset: 3000,
+        animation: "edge-draw-in 0.55s 0.1s ease-out forwards",
+      }
+    : {};
+
   return (
     <>
       <BaseEdge
@@ -202,18 +227,21 @@ export function DataFlowEdge({
         style={{
           stroke: strokeColor,
           strokeWidth: isTraceActive || selected ? 2 : 1.5,
-          opacity: dimmed ? 0.15 : 1,
+          opacity: edgeOpacity(isFocusModeDimmed, dimmed),
           transition: "stroke 0.5s, opacity 0.5s, stroke-width 0.3s",
+          ...focusDrawStyle,
         }}
       />
-      <EdgeFlowIndicator
-        edgePath={edgePath}
-        isError={isError}
-        isTraceActive={isTraceActive}
-        strokeColor={strokeColor}
-      />
+      {!isFocusModeDimmed && (
+        <EdgeFlowIndicator
+          edgePath={edgePath}
+          isError={isError}
+          isTraceActive={isTraceActive}
+          strokeColor={strokeColor}
+        />
+      )}
       <EdgeLabelRenderer>
-        {showLabel && data && (
+        {!isFocusModeDimmed && showLabel && data && (
           <EdgeLabel
             data={data}
             isError={isError}
@@ -222,7 +250,7 @@ export function DataFlowEdge({
             labelY={labelY}
           />
         )}
-        {showMetrics && platform && (
+        {!isFocusModeDimmed && showMetrics && platform && (
           <EdgeMetrics labelX={labelX} labelY={labelY} platform={platform} />
         )}
       </EdgeLabelRenderer>

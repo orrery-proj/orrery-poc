@@ -11,6 +11,8 @@ const layerKeys: Record<string, LayerId> = {
 export function useKeyboardShortcuts() {
   const setActiveLayer = useLayerStore((s) => s.setActiveLayer);
   const setSelectedNodeId = useLayerStore((s) => s.setSelectedNodeId);
+  const focusModeNodeId = useLayerStore((s) => s.focusModeNodeId);
+  const exitFocusMode = useLayerStore((s) => s.exitFocusMode);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -29,11 +31,16 @@ export function useKeyboardShortcuts() {
       }
 
       if (e.key === "Escape") {
-        setSelectedNodeId(null);
+        if (focusModeNodeId !== null) {
+          // fitView is handled by the effect in system-canvas watching focusModeNodeId.
+          exitFocusMode();
+        } else {
+          setSelectedNodeId(null);
+        }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setActiveLayer, setSelectedNodeId]);
+  }, [setActiveLayer, setSelectedNodeId, focusModeNodeId, exitFocusMode]);
 }

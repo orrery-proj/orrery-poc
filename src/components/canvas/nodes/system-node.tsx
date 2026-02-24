@@ -23,7 +23,6 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import type {
   HealthStatus,
@@ -32,11 +31,7 @@ import type {
   SystemNodeData,
 } from "@/data/types";
 import { cn } from "@/lib/utils";
-import {
-  ZOOM_CUE_MIN,
-  ZOOM_EXIT_CUE_RANGE,
-  ZOOM_EXPAND_MIN,
-} from "@/lib/zoom-constants";
+import { ZOOM_FOCUS_THRESHOLD } from "@/lib/zoom-constants";
 import { useLayerStore } from "@/stores/layer-store";
 
 const kindConfig: Record<
@@ -292,7 +287,7 @@ function getFeatureStatusDot(status: HealthStatus): string {
   return "bg-zinc-500";
 }
 
-function FeatureGrid({ features }: { features: ServiceFeature[] }) {
+export function FeatureGrid({ features }: { features: ServiceFeature[] }) {
   return (
     <div className="mt-2.5 grid grid-cols-2 gap-1 border-border/25 border-t pt-2.5">
       {features.map((f) => (
@@ -399,31 +394,77 @@ function NodeStatusIcon({
   return null;
 }
 
+/**
+ * Animated cue ring that sweeps around the node border over FOCUS_DWELL_MS,
+ * signalling "about to enter focus mode". Re-mounts on each new hover via `key`.
+ */
+function CueRing() {
+  // Perimeter ≈ 2*(220+160) = 760 for the default collapsed node size.
+  const perimeter = 760;
+  return (
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 overflow-visible"
+      fill="none"
+      height="100%"
+      width="100%"
+    >
+      {/* Soft bloom beneath the sweep line */}
+      <rect
+        filter="blur(4px)"
+        height="100%"
+        rx={8}
+        ry={8}
+        stroke="oklch(0.72 0.18 195 / 0.3)"
+        strokeDasharray={perimeter}
+        strokeDashoffset={0}
+        strokeWidth={4}
+        style={{
+          animation: "cue-sweep 600ms linear forwards",
+        }}
+        width="100%"
+        x={0}
+        y={0}
+      />
+      {/* Sharp sweep line */}
+      <rect
+        height="100%"
+        rx={8}
+        ry={8}
+        stroke="oklch(0.72 0.18 195 / 0.85)"
+        strokeDasharray={perimeter}
+        strokeDashoffset={perimeter}
+        strokeWidth={1.5}
+        style={{
+          animation: "cue-sweep 600ms linear forwards",
+        }}
+        width="100%"
+        x={0}
+        y={0}
+      />
+    </svg>
+  );
+}
+
 /** Derives the container className for the node outer div. */
 function getNodeContainerClass(
   flags: NodeFlags,
   isCued: boolean,
-  isExpanded: boolean,
-  isExitCue: boolean,
-  isOtherExpanded: boolean,
+  isFocused: boolean,
+  isScattered: boolean,
+  isNeighbor: boolean,
   selected: boolean
 ): string {
   const { isDraft, isError, isCritical, dimmed } = flags;
   return cn(
-    "relative rounded-lg border transition-all duration-500",
+    "relative w-[220px] rounded-lg border transition-all duration-500",
     "bg-card/80 backdrop-blur-sm",
-    isExpanded ? "w-[340px]" : "w-[220px]",
-    // Enter cue: outer glow + slight scale signals the node is about to open.
-    isCued &&
-      "scale-[1.05] border-[oklch(0.6_0.18_220_/_0.6)] shadow-[0_0_0_2px_oklch(0.6_0.18_220_/_0.5),0_0_28px_oklch(0.6_0.18_220_/_0.18)]",
-    // Exit cue: breathing pulse nudges "zoom out a little more to leave focus mode".
-    isExitCue && "animate-[exit-cue-pulse_1.5s_ease-in-out_infinite]",
-    // Expanded (stable): static glow to anchor the focused node when not in exit cue.
-    isExpanded &&
-      !isExitCue &&
-      "shadow-[0_0_0_1px_oklch(0.6_0.18_220_/_0.3),0_0_48px_oklch(0.6_0.18_220_/_0.15)]",
-    // Focus mode: other nodes retreat to near-invisible.
-    isOtherExpanded && "pointer-events-none opacity-[0.06]",
+    // Scattered neighbors: clearly visible and clickable.
+    isScattered && isNeighbor && "cursor-pointer opacity-[0.65]",
+    // Scattered non-neighbors: nearly invisible.
+    isScattered && !isNeighbor && "cursor-pointer opacity-[0.06]",
+    // Focused node: hidden (rendered by the DOM overlay instead).
+    isFocused && "pointer-events-none opacity-0",
     selected && "ring-1 ring-ring",
     isDraft &&
       "animate-[ghost-shimmer_3s_ease-in-out_infinite] border-layer-building/40 border-dashed bg-layer-building/5",
@@ -431,7 +472,7 @@ function getNodeContainerClass(
       "animate-[error-pulse_2s_ease-in-out_infinite] border-layer-error/50",
     isCritical &&
       "border-red-500/40 shadow-[0_0_16px_oklch(0.65_0.25_15_/_0.2)]",
-    !(isDraft || isError || isCritical || isCued || isExpanded) &&
+    !(isDraft || isError || isCritical || isCued || isFocused || isScattered) &&
       "border-border/60",
     dimmed && "opacity-30"
   );
@@ -452,74 +493,20 @@ function isNodeDimmed(
   );
 }
 
-/**
- * Computes the semantic zoom state for a node and manages the "expanded" lifecycle:
- * - tracks cue / expanded states from viewport zoom + hover
- * - on first expansion: registers the node as focused and pans the viewport to center it
- * - on collapse: clears the focus if this node was the focused one
- *
- * Extracted to keep SystemNodeComponent within the cognitive-complexity limit.
- */
-function useSemanticZoom(id: string, hasFeatures: boolean) {
-  const { zoom } = useViewport();
-  const rf = useReactFlow();
-  const hoveredNodeId = useLayerStore((s) => s.hoveredNodeId);
-  const expandedNodeId = useLayerStore((s) => s.expandedNodeId);
-  const setExpandedNodeId = useLayerStore((s) => s.setExpandedNodeId);
-
-  const isHovered = hoveredNodeId === id;
-  // Sticky: once locked in the store, stays expanded even after mouse leaves.
-  const isLocked = expandedNodeId === id;
-  const isCued = isHovered && zoom >= ZOOM_CUE_MIN && zoom < ZOOM_EXPAND_MIN;
-  const isExpanded =
-    isLocked || (isHovered && zoom >= ZOOM_EXPAND_MIN && hasFeatures);
-  // Exit cue: locked node inside the slow-exit zone — breathing pulse nudges the user.
-  const isExitCue =
-    isLocked &&
-    zoom >= ZOOM_EXPAND_MIN &&
-    zoom < ZOOM_EXPAND_MIN + ZOOM_EXIT_CUE_RANGE;
-
-  useEffect(() => {
-    // Lock: node enters expanded state while hovered.
-    if (!isLocked && isHovered && zoom >= ZOOM_EXPAND_MIN && hasFeatures) {
-      setExpandedNodeId(id);
-
-      // Pan to center the expanding node (zoom preserved to avoid threshold feedback).
-      const node = rf.getNode(id);
-      if (!node) {
-        return;
-      }
-      const { zoom: currentZoom } = rf.getViewport();
-      const expandedW = 340;
-      const expandedH = (node.measured?.height ?? 160) + 80;
-      const vpW = window.innerWidth;
-      const vpH = window.innerHeight;
-      rf.setViewport(
-        {
-          x: vpW / 2 - (node.position.x + expandedW / 2) * currentZoom,
-          y: vpH / 2 - (node.position.y + expandedH / 2) * currentZoom,
-          zoom: currentZoom,
-        },
-        { duration: 550 }
-      );
-      return;
-    }
-
-    // Unlock: user zoomed out below the expand threshold.
-    if (isLocked && zoom < ZOOM_EXPAND_MIN) {
-      setExpandedNodeId(null);
-    }
-  }, [isHovered, isLocked, zoom, hasFeatures, id, setExpandedNodeId, rf]);
-
-  return { isCued, isExpanded, isExitCue };
-}
-
 export function SystemNodeComponent({
   id,
   data,
   selected,
 }: NodeProps<SystemNodeType>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
+  const hoveredNodeId = useLayerStore((s) => s.hoveredNodeId);
+  const focusModeNodeId = useLayerStore((s) => s.focusModeNodeId);
+  const enterFocusMode = useLayerStore((s) => s.enterFocusMode);
+  const setFocusModeInitialRect = useLayerStore(
+    (s) => s.setFocusModeInitialRect
+  );
+  const rf = useReactFlow();
+  const { zoom } = useViewport();
 
   const isDraft = data.building?.isDraft ?? false;
   const isError = data.tracing?.status === "error" && activeLayer === "tracing";
@@ -528,12 +515,15 @@ export function SystemNodeComponent({
     data.platform?.health === "critical" && activeLayer === "platform";
   const dimmed = isNodeDimmed(activeLayer, isOnTracePath, data.kind);
 
-  const hasFeatures = (data.features?.length ?? 0) > 0;
-  const { isCued, isExpanded, isExitCue } = useSemanticZoom(id, hasFeatures);
-
-  // True when a *different* node is expanded — triggers focus-mode dimming.
-  const expandedNodeId = useLayerStore((s) => s.expandedNodeId);
-  const isOtherExpanded = expandedNodeId !== null && expandedNodeId !== id;
+  const focusModeNeighborIds = useLayerStore((s) => s.focusModeNeighborIds);
+  const isFocused = focusModeNodeId === id;
+  const isScattered = focusModeNodeId !== null && !isFocused;
+  const isNeighbor =
+    isScattered && (focusModeNeighborIds?.includes(id) ?? false);
+  const isCued =
+    hoveredNodeId === id &&
+    zoom >= ZOOM_FOCUS_THRESHOLD &&
+    focusModeNodeId === null;
 
   const config = kindConfig[data.kind];
   const Icon = config.icon;
@@ -546,17 +536,50 @@ export function SystemNodeComponent({
         position={Position.Top}
         type="target"
       />
+      {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions lint/a11y/noStaticElementInteractions: React Flow requires a div as node root; role/keyboard attrs added when interactive */}
       <div
         className={getNodeContainerClass(
           flags,
           isCued,
-          isExpanded,
-          isExitCue,
-          isOtherExpanded,
+          isFocused,
+          isScattered,
+          isNeighbor,
           selected
         )}
+        onClick={
+          isScattered
+            ? () => {
+                // Capture screen rect for hero transition before switching focus.
+                const node = rf.getNode(id);
+                if (node) {
+                  const { x: vpX, y: vpY, zoom: vz } = rf.getViewport();
+                  setFocusModeInitialRect({
+                    x: node.position.x * vz + vpX,
+                    y: node.position.y * vz + vpY,
+                    w: (node.measured?.width ?? 220) * vz,
+                    h: (node.measured?.height ?? 160) * vz,
+                  });
+                }
+                enterFocusMode(id);
+              }
+            : undefined
+        }
+        onKeyDown={
+          isScattered
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  enterFocusMode(id);
+                }
+              }
+            : undefined
+        }
+        role={isScattered ? "button" : undefined}
+        tabIndex={isScattered ? 0 : undefined}
       >
         <NodeAccentStripe config={config} flags={flags} />
+
+        {/* Cue ring: remount on each new hover start to restart the animation */}
+        {isCued && <CueRing key={`cue-${id}-${hoveredNodeId}`} />}
 
         <div className="px-3 py-2.5 pl-4">
           <div className="flex items-start justify-between gap-2">
@@ -600,10 +623,6 @@ export function SystemNodeComponent({
           {activeLayer === "tracing" && <TracingOverlay data={data} />}
           {activeLayer === "building" && <BuildingOverlay data={data} />}
           {activeLayer === "platform" && <PlatformOverlay data={data} />}
-
-          {isExpanded && data.features && (
-            <FeatureGrid features={data.features} />
-          )}
         </div>
       </div>
       <Handle
