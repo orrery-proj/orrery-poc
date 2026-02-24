@@ -60,3 +60,4 @@ Autopromote or schedule autopromotions services, useful when inspecting the the 
 - Layout: auto or manual?
 - How to massively improve performance
 - Plugins? Conflicts with business model
+

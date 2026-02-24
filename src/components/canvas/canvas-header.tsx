@@ -99,7 +99,7 @@ export function CanvasHeader() {
         type="button"
       >
         <h1 className="font-serif text-[15px] text-foreground/60 italic leading-none tracking-wide">
-          Meridian
+          Orray
         </h1>
         <div className="h-4 w-px bg-border/40" />
         <div className="flex items-center gap-1.5">

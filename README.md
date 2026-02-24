@@ -1,4 +1,4 @@
-# Meridian
+# Orray
 
 > A visual-first Internal Developer Platform — exploring spatial interfaces for complex system management.
 
@@ -18,7 +18,7 @@ This PoC asks a question: **what if the system was something you could see, all 
 
 Humans live in a 3D world and interact with 2D screens. We're wired to reason spatially — about proximity, flow, direction, containment. Traditional developer platforms ignore this entirely: they present systems as lists, tables, and trees, forcing users to reconstruct spatial relationships in their heads.
 
-Meridian places the entire system on a canvas. Services, databases, queues, and caches become objects with physical positions. Connections between them — data flows, API calls, event streams — become visible lines with direction. The topology isn't described; it's _drawn_.
+Orray places the entire system on a canvas. Services, databases, queues, and caches become objects with physical positions. Connections between them — data flows, API calls, event streams — become visible lines with direction. The topology isn't described; it's _drawn_.
 
 This isn't about making things pretty. Spatial layout lets you answer questions that are hard to answer with text:
 
@@ -33,7 +33,7 @@ You can answer all of these by looking, not searching.
 
 Different people need different views of the same system. A developer debugging a production incident doesn't need to see deployment versions. A product manager planning the next quarter doesn't need CPU metrics. A platform engineer monitoring infrastructure doesn't need feature-level breakdowns.
 
-Rather than building three separate dashboards, Meridian introduces **layers** — conceptually stacked views of the same spatial canvas. The topology stays fixed (same nodes, same positions), but the information overlaid on it changes entirely:
+Rather than building three separate dashboards, Orray introduces **layers** — conceptually stacked views of the same spatial canvas. The topology stays fixed (same nodes, same positions), but the information overlaid on it changes entirely:
 
 | Layer        | Persona            | What you see                                                         |
 | ------------ | ------------------ | -------------------------------------------------------------------- |
