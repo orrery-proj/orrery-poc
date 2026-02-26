@@ -5,7 +5,12 @@ import {
   systemEdges,
   systemNodes,
 } from "@/data/system";
-import type { LayerId, SystemEdge, SystemNode } from "@/data/types";
+import type {
+  LayerId,
+  SystemEdge,
+  SystemNode,
+  TimelineEvent,
+} from "@/data/types";
 
 export interface NodeScreenRect {
   h: number;
@@ -16,9 +21,13 @@ export interface NodeScreenRect {
 
 interface LayerState {
   activeLayer: LayerId;
+  activeTimelineEvent: TimelineEvent | null;
+  closeTimeline: () => void;
 
   enterFocusMode: (id: string) => void;
+  enterTimelineSnapshot: (event: TimelineEvent) => void;
   exitFocusMode: () => void;
+  exitTimelineSnapshot: () => void;
   /** Node currently in focus mode (null when none). */
   focusModeInitialRect: NodeScreenRect | null;
   /** Angle in radians (Math.atan2 convention) from focused node center to each neighbor center. */
@@ -30,6 +39,7 @@ interface LayerState {
 
   getNodes: () => SystemNode[];
   hoveredNodeId: string | null;
+  openTimeline: () => void;
   selectedNodeId: string | null;
   setActiveLayer: (layer: LayerId) => void;
   setFocusModeInitialRect: (rect: NodeScreenRect | null) => void;
@@ -37,11 +47,15 @@ interface LayerState {
   setFocusModeNeighborIds: (ids: string[] | null) => void;
   setHoveredNodeId: (id: string | null) => void;
   setSelectedNodeId: (id: string | null) => void;
+  setTimelinePosition: (pos: { x: number; y: number } | null) => void;
   showDraftNodes: boolean;
+  timelineOpen: boolean;
+  timelinePosition: { x: number; y: number } | null;
 }
 
 export const useLayerStore = create<LayerState>((set, get) => ({
-  activeLayer: "tracing",
+  activeLayer: "live",
+  activeTimelineEvent: null,
   selectedNodeId: null,
   focusModeNodeId: null,
   focusModeInitialRect: null,
@@ -49,6 +63,8 @@ export const useLayerStore = create<LayerState>((set, get) => ({
   focusModeNeighborIds: null,
   hoveredNodeId: null,
   showDraftNodes: true,
+  timelineOpen: false,
+  timelinePosition: null,
 
   setActiveLayer: (layer) => set({ activeLayer: layer, selectedNodeId: null }),
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
@@ -63,6 +79,16 @@ export const useLayerStore = create<LayerState>((set, get) => ({
   setFocusModeNeighborAngles: (a) => set({ focusModeNeighborAngles: a }),
   setFocusModeNeighborIds: (ids) => set({ focusModeNeighborIds: ids }),
   setHoveredNodeId: (id) => set({ hoveredNodeId: id }),
+
+  openTimeline: () => set({ timelineOpen: true }),
+  closeTimeline: () => set({ timelineOpen: false }),
+
+  enterTimelineSnapshot: (event) =>
+    set({ activeTimelineEvent: event, timelineOpen: false }),
+
+  exitTimelineSnapshot: () => set({ activeTimelineEvent: null }),
+
+  setTimelinePosition: (pos) => set({ timelinePosition: pos }),
 
   getNodes: () => {
     const { activeLayer } = get();

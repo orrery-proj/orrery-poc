@@ -1,6 +1,19 @@
 import type { Edge, Node } from "@xyflow/react";
 
-export type LayerId = "tracing" | "building" | "platform";
+export type LayerId = "live" | "building" | "platform";
+
+export type TimelineEventKind = "deployment" | "bug" | "proposal";
+
+export interface TimelineEvent {
+  affectedEdgeIds?: string[];
+  affectedNodeIds: string[];
+  description: string;
+  id: string;
+  kind: TimelineEventKind;
+  severity?: "low" | "medium" | "high";
+  timestamp: string;
+  title: string;
+}
 
 export type NodeKind = "service" | "database" | "queue" | "gateway" | "cache";
 

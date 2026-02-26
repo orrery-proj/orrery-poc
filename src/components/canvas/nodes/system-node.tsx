@@ -459,7 +459,9 @@ function getNodeContainerClass(
   isFocused: boolean,
   isScattered: boolean,
   isNeighbor: boolean,
-  selected: boolean
+  selected: boolean,
+  isSnapshotHighlighted: boolean,
+  isSnapshotDimmed: boolean
 ): string {
   const { isDraft, isError, isCritical, dimmed } = flags;
   return cn(
@@ -478,9 +480,19 @@ function getNodeContainerClass(
       "animate-[error-pulse_2s_ease-in-out_infinite] border-layer-error/50",
     isCritical &&
       "border-red-500/40 shadow-[0_0_16px_oklch(0.65_0.25_15_/_0.2)]",
-    !(isDraft || isError || isCritical || isCued || isFocused || isScattered) &&
-      "border-border/60",
-    dimmed && "opacity-30"
+    isSnapshotHighlighted &&
+      "border-layer-live/60 shadow-[0_0_16px_oklch(0.78_0.15_200_/_0.25)]",
+    !(
+      isDraft ||
+      isError ||
+      isCritical ||
+      isCued ||
+      isFocused ||
+      isScattered ||
+      isSnapshotHighlighted
+    ) && "border-border/60",
+    dimmed && "opacity-30",
+    isSnapshotDimmed && "opacity-20"
   );
 }
 
@@ -508,14 +520,14 @@ function buildPortHandles(
   });
 }
 
-/** Returns true when a tracing-layer node is not part of the active trace path. */
+/** Returns true when a live-layer node is not part of the active trace path. */
 function isNodeDimmed(
   activeLayer: string,
   isOnTracePath: boolean,
   kind: NodeKind
 ): boolean {
   return (
-    activeLayer === "tracing" &&
+    activeLayer === "live" &&
     !isOnTracePath &&
     kind !== "database" &&
     kind !== "cache" &&
@@ -536,15 +548,22 @@ export function SystemNodeComponent({
   const setFocusModeInitialRect = useLayerStore(
     (s) => s.setFocusModeInitialRect
   );
+  const activeTimelineEvent = useLayerStore((s) => s.activeTimelineEvent);
   const rf = useReactFlow();
   const { zoom } = useViewport();
 
   const isDraft = data.building?.isDraft ?? false;
-  const isError = data.tracing?.status === "error" && activeLayer === "tracing";
-  const isOnTracePath = Boolean(data.tracing && activeLayer === "tracing");
+  const isError = data.tracing?.status === "error" && activeLayer === "live";
+  const isOnTracePath = Boolean(data.tracing && activeLayer === "live");
   const isCritical =
     data.platform?.health === "critical" && activeLayer === "platform";
   const dimmed = isNodeDimmed(activeLayer, isOnTracePath, data.kind);
+
+  const isSnapshotActive = activeTimelineEvent !== null;
+  const isSnapshotHighlighted =
+    isSnapshotActive &&
+    (activeTimelineEvent?.affectedNodeIds.includes(id) ?? false);
+  const isSnapshotDimmed = isSnapshotActive && !isSnapshotHighlighted;
 
   const focusModeNeighborIds = useLayerStore((s) => s.focusModeNeighborIds);
   const focusModeNeighborAngles = useLayerStore(
@@ -601,7 +620,9 @@ export function SystemNodeComponent({
           isFocused,
           isScattered,
           isNeighbor,
-          selected
+          selected,
+          isSnapshotHighlighted,
+          isSnapshotDimmed
         )}
         onClick={
           isScattered
@@ -677,7 +698,7 @@ export function SystemNodeComponent({
             {data.description}
           </p>
 
-          {activeLayer === "tracing" && <TracingOverlay data={data} />}
+          {activeLayer === "live" && <TracingOverlay data={data} />}
           {activeLayer === "building" && <BuildingOverlay data={data} />}
           {activeLayer === "platform" && <PlatformOverlay data={data} />}
         </div>

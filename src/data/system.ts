@@ -1,4 +1,4 @@
-import type { SystemEdge, SystemNode } from "./types";
+import type { SystemEdge, SystemNode, TimelineEvent } from "./types";
 
 export const systemNodes: SystemNode[] = [
   {
@@ -169,7 +169,7 @@ export const systemNodes: SystemNode[] = [
   {
     id: "order-service",
     type: "system",
-    position: { x: 550, y: 620 },
+    position: { x: 789, y: 512 },
     data: {
       label: "Order Service",
       kind: "service",
@@ -438,7 +438,7 @@ export const systemNodes: SystemNode[] = [
   {
     id: "orders-db",
     type: "system",
-    position: { x: 550, y: 820 },
+    position: { x: 781, y: 927 },
     data: {
       label: "Orders DB",
       kind: "database",
@@ -781,6 +781,108 @@ export const draftNodes: SystemNode[] = [
         description: "Central analytics pipeline for all domain events",
       },
     },
+  },
+];
+
+export const timelineEvents: TimelineEvent[] = [
+  {
+    id: "tl-001",
+    kind: "deployment",
+    title: "Order Service v4.1.2",
+    description:
+      "Deployed fulfillment workflow refactor with improved retry logic",
+    timestamp: "2026-02-22T09:30:00Z",
+    affectedNodeIds: ["order-service", "orders-db"],
+    affectedEdgeIds: ["gw-os", "os-db", "os-eb"],
+    severity: "low",
+  },
+  {
+    id: "tl-002",
+    kind: "bug",
+    title: "Stripe API Timeout",
+    description:
+      "Payment service experiencing 12s+ timeouts from Stripe webhook endpoint — charge processing failing for ~45% of requests",
+    timestamp: "2026-02-22T10:00:02Z",
+    affectedNodeIds: ["payment-service", "order-service"],
+    affectedEdgeIds: ["os-ps", "ps-eb"],
+    severity: "high",
+  },
+  {
+    id: "tl-003",
+    kind: "deployment",
+    title: "API Gateway v2.8.1",
+    description:
+      "Rolled out improved rate-limiting with per-client burst allowances",
+    timestamp: "2026-02-20T14:15:00Z",
+    affectedNodeIds: ["gateway"],
+    affectedEdgeIds: ["gw-us", "gw-pc", "gw-os"],
+    severity: "low",
+  },
+  {
+    id: "tl-004",
+    kind: "proposal",
+    title: "Recommendation Engine (PLAT-1042)",
+    description:
+      "Phase 2: ML-powered product recommendations via collaborative filtering — proposed by Sarah Chen",
+    timestamp: "2026-02-18T11:00:00Z",
+    affectedNodeIds: [
+      "recommendation-engine",
+      "product-catalog",
+      "cache",
+      "gateway",
+    ],
+    affectedEdgeIds: ["pc-rec", "rec-cache", "gw-rec"],
+    severity: "low",
+  },
+  {
+    id: "tl-005",
+    kind: "bug",
+    title: "Inventory Warehouse Sync Degraded",
+    description:
+      "WMS integration sync falling behind — inventory levels stale by up to 8 minutes",
+    timestamp: "2026-02-21T08:45:00Z",
+    affectedNodeIds: ["inventory-service", "products-db"],
+    affectedEdgeIds: ["is-pdb", "is-eb"],
+    severity: "medium",
+  },
+  {
+    id: "tl-006",
+    kind: "deployment",
+    title: "Kafka 3.7 Upgrade",
+    description:
+      "Upgraded Event Bus cluster to Kafka 3.7 with improved consumer group rebalancing",
+    timestamp: "2026-02-14T06:00:00Z",
+    affectedNodeIds: [
+      "event-bus",
+      "order-service",
+      "payment-service",
+      "inventory-service",
+      "notification-service",
+    ],
+    affectedEdgeIds: ["os-eb", "ps-eb", "is-eb", "eb-ns"],
+    severity: "medium",
+  },
+  {
+    id: "tl-007",
+    kind: "proposal",
+    title: "Analytics Service (PLAT-987)",
+    description:
+      "Central analytics pipeline consuming all domain events — proposed by Marco Rossi",
+    timestamp: "2026-02-15T15:30:00Z",
+    affectedNodeIds: ["analytics-service", "event-bus"],
+    affectedEdgeIds: ["eb-analytics"],
+    severity: "low",
+  },
+  {
+    id: "tl-008",
+    kind: "deployment",
+    title: "User Service v1.14.0",
+    description:
+      "Added RBAC permission caching and improved OAuth token refresh flow",
+    timestamp: "2026-02-21T16:00:00Z",
+    affectedNodeIds: ["user-service", "users-db", "gateway"],
+    affectedEdgeIds: ["gw-us", "us-db"],
+    severity: "low",
   },
 ];
 

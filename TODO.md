@@ -1,8 +1,8 @@
 ## Ideas
 
-### I1 - Version Control:
+### I1 - Version Control / Timeline:
 
-use version control from deployment repo to show the version history of the system
+A draggable floating timeline panel accessible from a small button at the bottom of the viewport (icon: timeline/clock). Hovering the button expands it into a full timeline bar taking the bottom space. The bar is freely draggable anywhere on the viewport (unconstrained, like a pen-tool bar in note-taking apps). The timeline displays all system events: bugs, deployments, proposals. Hovering the edges of the timeline reveals a "search backwards" affordance; clicking moves the time range. Hovering an event shows a minimal tooltip. Clicking an event transitions the entire canvas into a historical snapshot of that moment — highlighting the event similarly to the tracing layer — and the timeline collapses back to button mode with an exit button beside it. Reopening the timeline while in snapshot mode also shows the exit button. Exiting snapshot mode returns the canvas to "live" state. "Live" replaces "tracing" as the default active layer.
 
 ### I2 - Repo introspection
 

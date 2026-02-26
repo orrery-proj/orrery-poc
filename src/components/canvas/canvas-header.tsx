@@ -1,4 +1,4 @@
-import { Gauge, PencilRuler, ScanSearch } from "lucide-react";
+import { Gauge, PencilRuler, Radio } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { LayerId } from "@/data/types";
@@ -19,14 +19,14 @@ interface LayerConfig {
 
 const layers: LayerConfig[] = [
   {
-    id: "tracing",
-    label: "Tracing",
+    id: "live",
+    label: "Live",
     persona: "SWE",
-    icon: ScanSearch,
-    accentClass: "text-layer-tracing",
-    colorClass: "bg-layer-tracing",
+    icon: Radio,
+    accentClass: "text-layer-live",
+    colorClass: "bg-layer-live",
     glowColor: "oklch(0.78 0.15 200 / 0.12)",
-    description: "Debug flows & errors",
+    description: "Real-time observability",
     key: "1",
   },
   {

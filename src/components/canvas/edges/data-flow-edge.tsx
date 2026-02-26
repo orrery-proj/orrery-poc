@@ -156,9 +156,16 @@ function EdgeMetrics({
   );
 }
 
-function edgeOpacity(isFocusModeDimmed: boolean, dimmed: boolean): number {
+function edgeOpacity(
+  isFocusModeDimmed: boolean,
+  dimmed: boolean,
+  isSnapshotDimmed: boolean
+): number {
   if (isFocusModeDimmed) {
     return 0.04;
+  }
+  if (isSnapshotDimmed) {
+    return 0.08;
   }
   if (dimmed) {
     return 0.15;
@@ -166,6 +173,39 @@ function edgeOpacity(isFocusModeDimmed: boolean, dimmed: boolean): number {
   return 1;
 }
 
+function resolveStrokeColor(
+  activeLayer: string,
+  isError: boolean,
+  isWarning: boolean,
+  isTraceActive: boolean,
+  errorRate: number
+): string {
+  if (activeLayer === "live") {
+    return getTracingStroke(isError, isWarning, isTraceActive);
+  }
+  if (activeLayer === "platform") {
+    return getPlatformStroke(errorRate);
+  }
+  if (activeLayer === "building") {
+    return "oklch(0.45 0.03 270)";
+  }
+  return "oklch(0.35 0.02 270)";
+}
+
+function isEdgeSnapshotHighlighted(
+  affectedEdgeIds: string[] | undefined,
+  affectedNodeIds: string[],
+  id: string,
+  source: string,
+  target: string
+): boolean {
+  if (affectedEdgeIds !== undefined) {
+    return affectedEdgeIds.includes(id);
+  }
+  return affectedNodeIds.includes(source) && affectedNodeIds.includes(target);
+}
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: edge rendering branches across layers and snapshot modes are inherently conditional
 export function DataFlowEdge({
   id,
   source,
@@ -181,10 +221,22 @@ export function DataFlowEdge({
 }: EdgeProps<SystemEdgeType>) {
   const activeLayer = useLayerStore((s) => s.activeLayer);
   const focusModeNodeId = useLayerStore((s) => s.focusModeNodeId);
+  const activeTimelineEvent = useLayerStore((s) => s.activeTimelineEvent);
   const isFocusModeEdge =
     focusModeNodeId !== null &&
     (source === focusModeNodeId || target === focusModeNodeId);
   const isFocusModeDimmed = focusModeNodeId !== null && !isFocusModeEdge;
+  const isSnapshotActive = activeTimelineEvent !== null;
+  const isSnapshotHighlighted =
+    isSnapshotActive &&
+    isEdgeSnapshotHighlighted(
+      activeTimelineEvent?.affectedEdgeIds,
+      activeTimelineEvent?.affectedNodeIds ?? [],
+      id,
+      source,
+      target
+    );
+  const isSnapshotDimmed = isSnapshotActive && !isSnapshotHighlighted;
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -197,19 +249,18 @@ export function DataFlowEdge({
 
   const tracing = data?.tracing;
   const platform = data?.platform;
-  const isTraceActive = activeLayer === "tracing" && (tracing?.active ?? false);
+  const isTraceActive = activeLayer === "live" && (tracing?.active ?? false);
   const isError = tracing?.status === "error";
   const isWarning = tracing?.status === "warning";
-  const dimmed = activeLayer === "tracing" && !(tracing?.active ?? false);
+  const dimmed = activeLayer === "live" && !(tracing?.active ?? false);
 
-  let strokeColor = "oklch(0.35 0.02 270)";
-  if (activeLayer === "tracing") {
-    strokeColor = getTracingStroke(isError, isWarning, isTraceActive);
-  } else if (activeLayer === "platform") {
-    strokeColor = getPlatformStroke(platform?.errorRate ?? 0);
-  } else if (activeLayer === "building") {
-    strokeColor = "oklch(0.45 0.03 270)";
-  }
+  const strokeColor = resolveStrokeColor(
+    activeLayer,
+    isError,
+    isWarning,
+    isTraceActive,
+    platform?.errorRate ?? 0
+  );
 
   const showLabel = !!(
     data?.label &&
@@ -233,7 +284,11 @@ export function DataFlowEdge({
         style={{
           stroke: strokeColor,
           strokeWidth: isTraceActive || selected ? 2 : 1.5,
-          opacity: edgeOpacity(isFocusModeDimmed, dimmed),
+          opacity: edgeOpacity(isFocusModeDimmed, dimmed, isSnapshotDimmed),
+          ...(isSnapshotHighlighted && {
+            stroke: "oklch(0.78 0.15 200)",
+            strokeWidth: 2.5,
+          }),
           ...focusDrawStyle,
         }}
       />

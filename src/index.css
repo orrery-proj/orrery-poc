@@ -49,7 +49,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --color-layer-tracing: oklch(0.78 0.15 200);
+  --color-layer-live: oklch(0.78 0.15 200);
   --color-layer-building: oklch(0.8 0.16 80);
   --color-layer-platform: oklch(0.77 0.15 165);
   --color-layer-error: oklch(0.65 0.25 15);

@@ -5,6 +5,7 @@ import {
   MiniMap,
   type Node,
   type NodeMouseHandler,
+  type OnNodeDrag,
   type OnSelectionChangeFunc,
   ReactFlow,
   useEdgesState,
@@ -19,6 +20,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useLayerStore } from "@/stores/layer-store";
 import { BuildingToolbar } from "../panels/building-toolbar";
 import { NodeDetailPanel } from "../panels/node-detail-panel";
+import { TimelinePanel } from "../panels/timeline-panel";
 import { CanvasHeader } from "./canvas-header";
 import { DataFlowEdge } from "./edges/data-flow-edge";
 import { GhostEdge } from "./edges/ghost-edge";
@@ -33,7 +35,7 @@ const edgeTypes = { dataflow: DataFlowEdge, ghost: GhostEdge };
 const proOptions = { hideAttribution: true };
 
 const bgColors = {
-  tracing: "oklch(0.78 0.15 200 / 0.15)",
+  live: "oklch(0.78 0.15 200 / 0.15)",
   building: "oklch(0.80 0.16 80 / 0.10)",
   platform: "oklch(0.77 0.15 165 / 0.12)",
 } as const;
@@ -329,6 +331,11 @@ export function SystemCanvas() {
     useLayerStore.getState().getEdges()
   );
 
+  // Always-current ref so onNodeDragStop reads the latest positions,
+  // not a stale closure snapshot captured by the React Compiler.
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeLayer triggers re-sync; getState() avoids stale closures
   useEffect(() => {
     const { getNodes, getEdges } = useLayerStore.getState();
@@ -350,6 +357,24 @@ export function SystemCanvas() {
 
   const onPaneClick = () => setSelectedNodeId(null);
 
+  // In building mode (dev only): persist all node positions to system.ts after each drag.
+  const onNodeDragStop: OnNodeDrag = () => {
+    if (activeLayer !== "building" || !import.meta.env.DEV) {
+      return;
+    }
+    const positions: Record<string, { x: number; y: number }> = {};
+    for (const n of nodesRef.current) {
+      positions[n.id] = n.position;
+    }
+    fetch("/api/save-positions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(positions),
+    }).catch((_err: unknown) => {
+      // fire-and-forget: silently ignore save errors in dev
+    });
+  };
+
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) as
     | SystemNodeType
     | undefined;
@@ -370,6 +395,7 @@ export function SystemCanvas() {
           nodesDraggable={activeLayer === "building"}
           nodeTypes={nodeTypes}
           onEdgesChange={onEdgesChange}
+          onNodeDragStop={onNodeDragStop}
           onNodeMouseEnter={onNodeMouseEnter}
           onNodeMouseLeave={onNodeMouseLeave}
           onNodesChange={onNodesChange}
@@ -407,6 +433,7 @@ export function SystemCanvas() {
 
       <CanvasHeader />
       <BuildingToolbar />
+      <TimelinePanel />
       {!isInFocusMode && selectedNode && (
         <NodeDetailPanel
           node={selectedNode}
