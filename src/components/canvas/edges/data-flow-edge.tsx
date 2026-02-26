@@ -244,6 +244,7 @@ export function DataFlowEdge({
       target
     );
   const isSnapshotDimmed = isSnapshotActive && !isSnapshotHighlighted;
+  const isSnapshotBug = activeTimelineEvent?.kind === "bug";
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -295,7 +296,9 @@ export function DataFlowEdge({
           strokeWidth: isTraceActive || selected ? 2 : 1.5,
           opacity: edgeOpacity(isFocusModeDimmed, dimmed, isSnapshotDimmed),
           ...(isSnapshotHighlighted && {
-            stroke: "oklch(0.78 0.15 200)",
+            stroke: isSnapshotBug
+              ? "oklch(0.65 0.25 15)"
+              : "oklch(0.78 0.15 200)",
             strokeWidth: 2.5,
           }),
           ...focusDrawStyle,

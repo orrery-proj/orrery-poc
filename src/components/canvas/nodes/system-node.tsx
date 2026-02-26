@@ -438,7 +438,8 @@ function getNodeContainerClass(
   isNeighbor: boolean,
   selected: boolean,
   isSnapshotHighlighted: boolean,
-  isSnapshotDimmed: boolean
+  isSnapshotDimmed: boolean,
+  isSnapshotBug: boolean
 ): string {
   const { isDraft, isError, isCritical, dimmed } = flags;
   return cn(
@@ -458,7 +459,11 @@ function getNodeContainerClass(
     isCritical &&
       "border-red-500/40 shadow-[0_0_16px_oklch(0.65_0.25_15_/_0.2)]",
     isSnapshotHighlighted &&
+      !isSnapshotBug &&
       "border-layer-live/60 shadow-[0_0_16px_oklch(0.78_0.15_200_/_0.25)]",
+    isSnapshotHighlighted &&
+      isSnapshotBug &&
+      "border-layer-error/70 shadow-[0_0_18px_oklch(0.65_0.25_15_/_0.35)]",
     !(
       isDraft ||
       isError ||
@@ -526,6 +531,7 @@ export function SystemNodeComponent({
     isSnapshotActive &&
     (activeTimelineEvent?.affectedNodeIds.includes(id) ?? false);
   const isSnapshotDimmed = isSnapshotActive && !isSnapshotHighlighted;
+  const isSnapshotBug = activeTimelineEvent?.kind === "bug";
 
   const focusModeNeighborIds = useLayerStore((s) => s.focusModeNeighborIds);
   const focusModeNeighborAngles = useLayerStore(
@@ -584,7 +590,8 @@ export function SystemNodeComponent({
           isNeighbor,
           selected,
           isSnapshotHighlighted,
-          isSnapshotDimmed
+          isSnapshotDimmed,
+          isSnapshotBug
         )}
         onClick={
           isScattered
