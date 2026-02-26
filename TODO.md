@@ -61,3 +61,11 @@ Autopromote or schedule autopromotions services, useful when inspecting the the 
 - How to massively improve performance
 - Plugins? Conflicts with business model
 
+### Market situation
+
+- current percentage of companies using k8s
+- rate of adoption of k8s on new companies
+- numbers of devs and services on companies p.a.
+- numbers of companies using IDPs
+- most common IDPs on the market
+- most frustrating things about current IDPs
