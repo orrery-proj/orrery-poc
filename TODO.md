@@ -160,3 +160,175 @@ ReactFlow renders every node and edge as a DOM element (React component). Each n
 - most common IDPs on the market
 - most frustrating things about current IDPs
 - the most used interaction medium for inspecting a platform: mouse, trackpad, touch, keyboard, pen.
+
+# Market Research Report (Kubernetes + Internal Developer Platforms) — 2026-02-28
+
+This report summarizes the best available, citable data for each point you listed. Where the industry does **not** have a clean, public metric, it’s explicitly called out.
+
+---
+
+## 1) Current percentage of companies using Kubernetes
+
+There is **no single authoritative** “% of all companies worldwide using Kubernetes” because “company” is an ill-defined denominator (most companies have no software org, no containers, etc.). What *is* measured reliably is adoption **among container users / surveyed orgs**.
+
+- **82% of container users run Kubernetes in production (2025)**  
+  Source (CNCF announcement + report):  
+  - https://www.cncf.io/announcements/2026/01/20/kubernetes-established-as-the-de-facto-operating-system-for-ai-as-production-use-hits-82-in-2025-cncf-annual-cloud-native-survey/  
+  - https://www.cncf.io/reports/the-cncf-annual-cloud-native-survey/
+
+- **~80% of organizations run Kubernetes in production** (enterprise-focused survey)  
+  Source (Komodor 2025 Enterprise Kubernetes Report PDF):  
+  - https://komodor.com/wp-content/uploads/2025/09/Komodor-2025-Enterprise-Kubernetes-Report.pdf
+
+**How to phrase this in your materials (accurately):**  
+“Kubernetes is used in production by roughly **~80%+ of container-using organizations** in recent large surveys.”
+
+---
+
+## 2) Rate of adoption of Kubernetes in *new* companies
+
+A clean “**new adopters per year**” metric is not commonly published publicly in a credible way.
+
+What is available:
+- **CNCF indicates new cloud native adoption is slowing** and that only a small share remains “early stage / not using” cloud native.  
+  Source (CNCF announcement; cloud native broadly, not strictly k8s):  
+  - https://www.cncf.io/announcements/2026/01/20/kubernetes-established-as-the-de-facto-operating-system-for-ai-as-production-use-hits-82-in-2025-cncf-annual-cloud-native-survey/
+
+**Best proxy metric you *can* cite:**  
+Track the change over time in “% running Kubernetes in production” within a consistent survey population (e.g., CNCF year-over-year).
+
+---
+
+## 3) Number of devs and services in companies (per annum)
+
+### 3a) Number of developers in companies p.a.
+A generalized “devs per company per year” benchmark is not a standard public metric; it depends heavily on:
+- industry, region
+- company size distribution (median vs mean differs drastically)
+- whether you count contractors, platform/SRE, etc.
+
+Public survey demographics exist, but they are **not** a “per company per annum” benchmark:
+- Stack Overflow Developer Survey (respondent-level data, not company-wide averages)  
+  Source:  
+  - https://survey.stackoverflow.co/2025/developers/
+
+**Practical note:** For an IDP business case, you’ll get more defensible numbers by segmenting: e.g., “companies with 150+ developers” (like Port’s reports), or “mid-market SaaS 200–2000 employees.”
+
+### 3b) Number of services (microservices) in companies p.a.
+There is no broadly accepted public “average number of services per company” metric. What exists are:
+- **case studies / research datasets** at specific large companies (not generalizable)
+- vendor claims with unclear methodology
+
+Example of a **real-world scale reference** (research, Alibaba system trace analysis):
+- https://arxiv.org/pdf/2504.13141
+
+**Recommendation:** treat service count as a **banded variable** (<50, 50–200, 200–1000, 1000+) and validate with interviews/telemetry in your target segment.
+
+---
+
+## 4) Number of companies using IDPs
+
+The market measures this more often as “Internal Developer Portals” (Backstage-like portals), and the best public stats are survey-based (not a universal census).
+
+- **50% already use an internal developer portal; 35% plan to in the next 12 months** (in Port’s 2024 sample of engineering leaders at companies with 150+ devs)  
+  Sources:  
+  - PDF: https://info.getport.io/hubfs/2024%20state%20of%20internal%20developer%20portals_edited.pdf  
+  - Landing page: https://port.io/state-of-internal-developer-portals-2024
+
+- Port’s 2025 report provides additional adoption/usage signals (including tool usage patterns and metadata approaches).  
+  Source:  
+  - https://www.port.io/state-of-internal-developer-portals
+
+**Important caveat:** Port is a vendor; treat these as **survey insights**, not a definitive market census.
+
+---
+
+## 5) Most common IDPs on the market
+
+### 5a) Most common framework (open ecosystem)
+- **Backstage** is widely recognized as the dominant open-source framework for internal developer portals.
+  - Port’s 2024 report shows “Backstage” as a major category in their sample.  
+    Source (Port 2024 PDF):  
+    - https://info.getport.io/hubfs/2024%20state%20of%20internal%20developer%20portals_edited.pdf
+
+### 5b) Common commercial offerings (examples commonly referenced)
+Based on ecosystem discussions and market visibility (not a neutral market-share ranking in the sources gathered):
+- **Port**, **Cortex**, **OpsLevel**, **Roadie** (Backstage SaaS), plus other emerging vendors.
+
+Ecosystem context source:
+- https://tfir.io/survey-understanding-backstage-and-internal-developer-portals-in-2025
+
+**Note:** A true “most common by market share” list generally comes from paid analyst research or proprietary usage data; I did not find a credible free/public market-share table in the sources gathered.
+
+---
+
+## 6) Most frustrating things about current IDPs
+
+Strong, citable pain points from Port’s 2025 report (survey of 300 developers in US & Western Europe, organizations with 150+ developers), plus a media summary:
+
+- **Tool sprawl**: average **7.4 tools** used for everyday operational tasks  
+- **Productivity loss due to tool sprawl**: **75%** lose **6–15 hours weekly**  
+- **Waiting on SRE/DevOps**: **78%** wait **a day or more** for assistance  
+- **Self-service dissatisfaction**: **94%** experience dissatisfaction with self-service tools  
+- **Low trust in platform metadata**: only **3%** report data quality is completely trustworthy; **50%** have doubts
+
+Sources:
+- Port report: https://www.port.io/state-of-internal-developer-portals  
+- DevOps.com summary: https://devops.com/survey-increased-tool-sprawl-saps-developer-productivity/
+
+**How these translate into design requirements for your “visual interpretation” platform:**
+- reduce context switching (unify discovery + action)
+- make ownership/dependencies obvious (service maps, blast radius)
+- shorten the “ask platform team” loop (guardrailed self-service)
+- make metadata provenance/freshness transparent (trust mechanics)
+
+---
+
+## 7) Most used interaction medium for inspecting a platform (mouse, trackpad, touch, keyboard, pen)
+
+I did **not** find credible public research that directly answers:  
+“for inspecting an internal platform UI, what % use mouse vs trackpad vs touch vs keyboard vs pen?”
+
+What exists publicly:
+- High-level workplace computing reports (often paywalled) that may include device/input trends, but not specifically “platform inspection” tasks.
+
+Example (paywalled):
+- https://www.forrester.com/report/end-user-computing-market-insights-2025/RES181968
+
+**Best practical approach (and the one investors/buyers accept):**
+- instrument your product and publish your own metrics:
+  - pointer usage vs keyboard shortcut usage
+  - session device class (desktop/laptop/tablet)
+  - touch vs mouse/trackpad via Pointer Events (`pointerType`)
+- complement telemetry with 10–20 targeted usability studies across roles (dev, SRE, EM).
+
+---
+
+## Appendix: Primary links (all in one place)
+
+- CNCF Annual Cloud Native Survey announcement (82% in production among container users):  
+  https://www.cncf.io/announcements/2026/01/20/kubernetes-established-as-the-de-facto-operating-system-for-ai-as-production-use-hits-82-in-2025-cncf-annual-cloud-native-survey/
+
+- CNCF report landing page:  
+  https://www.cncf.io/reports/the-cncf-annual-cloud-native-survey/
+
+- Komodor 2025 Enterprise Kubernetes Report (PDF):  
+  https://komodor.com/wp-content/uploads/2025/09/Komodor-2025-Enterprise-Kubernetes-Report.pdf
+
+- Port 2024 State of Internal Developer Portals (PDF):  
+  https://info.getport.io/hubfs/2024%20state%20of%20internal%20developer%20portals_edited.pdf
+
+- Port State of Internal Developer Portals (2025):  
+  https://www.port.io/state-of-internal-developer-portals
+
+- DevOps.com coverage of Port survey results:  
+  https://devops.com/survey-increased-tool-sprawl-saps-developer-productivity/
+
+- Stack Overflow Developer Survey 2025:  
+  https://survey.stackoverflow.co/2025/developers/
+
+- Alibaba microservices trace analysis (research PDF):  
+  https://arxiv.org/pdf/2504.13141
+
+- Forrester end-user computing market insights 2025 (paywalled):  
+  https://www.forrester.com/report/end-user-computing-market-insights-2025/RES181968
