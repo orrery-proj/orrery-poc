@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useAnimate } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -29,13 +29,15 @@ const UNSELECTED_NODES = GRAPH_NODES.filter(
   (n) => !SELECTED_IDS.includes(n.id)
 );
 
-const ENV_LINE_Y = 380;
-const ENV_LINE: Record<string, { x: number; y: number }> = {
-  api: { x: 130, y: ENV_LINE_Y },
-  users: { x: 340, y: ENV_LINE_Y },
-  orders: { x: 550, y: ENV_LINE_Y },
-  payments: { x: 760, y: ENV_LINE_Y },
+// X positions for env-diff layout (Y is measured dynamically from container center)
+const ENV_X: Record<string, number> = {
+  api: 130,
+  users: 340,
+  orders: 550,
+  payments: 760,
 };
+const ENV_X_MIN = 130;
+const ENV_X_MAX = 760;
 
 const ENV_VERSIONS: Record<
   string,
@@ -105,6 +107,21 @@ export function EnvDiffCanvas() {
   const [nodeTrans, setNodeTrans] = useState(ROT_OPTS);
   const [isAnimating, setIsAnimating] = useState(false);
   const [scope, animate] = useAnimate();
+
+  // Measure container center — this is where the graph collapses to at 90°
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [centerY, setCenterY] = useState(380);
+
+  useEffect(() => {
+    const measure = () => {
+      if (containerRef.current) {
+        setCenterY(containerRef.current.clientHeight / 2);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   const isEnv = phase === "env";
 
@@ -187,6 +204,7 @@ export function EnvDiffCanvas() {
       <div className="relative flex-1 overflow-hidden">
         <div
           className="relative mx-auto h-full w-full max-w-[900px]"
+          ref={containerRef}
           style={{ perspective: "1200px" }}
         >
           {/* ── Rotating layer: graph surface (edges + unselected nodes) ── */}
@@ -245,10 +263,10 @@ export function EnvDiffCanvas() {
               strokeDasharray="6 4"
               strokeWidth={1}
               transition={{ duration: 0.3 }}
-              x1={130}
-              x2={760}
-              y1={ENV_LINE_Y}
-              y2={ENV_LINE_Y}
+              x1={ENV_X_MIN}
+              x2={ENV_X_MAX}
+              y1={centerY}
+              y2={centerY}
             />
           </svg>
 
@@ -258,10 +276,10 @@ export function EnvDiffCanvas() {
               Reverse: env → compressed → graph */}
           {GRAPH_NODES.filter((n) => SELECTED_IDS.includes(n.id)).map(
             (node) => {
-              const envPos = ENV_LINE[node.id];
+              const envX = ENV_X[node.id];
               const targetX =
-                nodeTarget === "env" && envPos ? envPos.x : node.x;
-              const targetY = nodeTarget === "graph" ? node.y : ENV_LINE_Y;
+                nodeTarget === "env" && envX != null ? envX : node.x;
+              const targetY = nodeTarget === "graph" ? node.y : centerY;
 
               return (
                 <motion.div
@@ -288,8 +306,8 @@ export function EnvDiffCanvas() {
           <AnimatePresence>
             {isEnv &&
               SELECTED_IDS.map((id, i) => {
-                const pos = ENV_LINE[id];
-                if (!pos) {
+                const x = ENV_X[id];
+                if (x == null) {
                   return null;
                 }
                 const versions = ENV_VERSIONS[id] ?? [];
@@ -304,9 +322,9 @@ export function EnvDiffCanvas() {
                     initial={{ opacity: 0 }}
                     key={`env-col-${id}`}
                     style={{
-                      left: pos.x,
+                      left: x,
                       top: 0,
-                      height: pos.y - 20,
+                      height: centerY - 20,
                       transform: "translateX(-50%)",
                     }}
                     transition={{ duration: 0.3, delay: i * 0.04 }}
