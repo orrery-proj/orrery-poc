@@ -69,6 +69,8 @@ function nodeById(id: string) {
   return GRAPH_NODES.find((n) => n.id === id);
 }
 
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 // ─── Node style ──────────────────────────────────────────────────────────────
 
 const SELECTED_STYLE = {
@@ -85,14 +87,26 @@ const UNSELECTED_STYLE = {
   boxShadow: "0 2px 8px oklch(0 0 0 / 0.3)",
 } as const;
 
+// ─── Animation config ─────────────────────────────────────────────────────────
+
+const ROT_OPTS = { duration: 0.85, ease: [0.3, 0, 0.7, 1] };
+const SLIDE_OPTS = { duration: 0.5, ease: [0.4, 0, 0.15, 1] };
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function EnvDiffCanvas() {
-  const [mode, setMode] = useState<"graph" | "env">("graph");
+  // Controls env card / line visibility
+  const [phase, setPhase] = useState<"graph" | "env">("graph");
+  // Controls selected node target positions (3-phase)
+  const [nodeTarget, setNodeTarget] = useState<"graph" | "compressed" | "env">(
+    "graph"
+  );
+  // Transition for the current node animation phase
+  const [nodeTrans, setNodeTrans] = useState(ROT_OPTS);
   const [isAnimating, setIsAnimating] = useState(false);
   const [scope, animate] = useAnimate();
 
-  const isEnv = mode === "env";
+  const isEnv = phase === "env";
 
   const handleToggle = useCallback(async () => {
     if (isAnimating) {
@@ -100,21 +114,37 @@ export function EnvDiffCanvas() {
     }
     setIsAnimating(true);
 
-    const rotationOpts = { duration: 0.85, ease: [0.3, 0, 0.7, 1] } as const;
+    if (phase === "graph") {
+      // Phase 1: Rotate graph surface 0→90° + compress selected nodes Y
+      setNodeTrans(ROT_OPTS);
+      setNodeTarget("compressed");
+      await animate(scope.current, { rotateX: 90 }, ROT_OPTS);
 
-    if (mode === "graph") {
-      // Forward: switch layout, rotate graph surface to 90° (edge-on)
-      setMode("env");
-      await animate(scope.current, { rotateX: 90 }, rotationOpts);
-      // Leave scope at 90° — surface is naturally invisible
+      // Phase 2: Slide selected nodes X to evenly-spaced env positions
+      setNodeTrans(SLIDE_OPTS);
+      setNodeTarget("env");
+      await wait(SLIDE_OPTS.duration * 1000);
+
+      // Phase 3: Show env cards + dashed line
+      setPhase("env");
     } else {
-      // Reverse: animate surface back from 90° → 0° (unfolds toward viewer)
-      await animate(scope.current, { rotateX: 0 }, rotationOpts);
-      setMode("graph");
+      // Phase 1: Hide env cards + dashed line
+      setPhase("graph");
+      await wait(200);
+
+      // Phase 2: Slide selected nodes X back to graph positions
+      setNodeTrans(SLIDE_OPTS);
+      setNodeTarget("compressed");
+      await wait(SLIDE_OPTS.duration * 1000);
+
+      // Phase 3: Rotate graph back 90→0° + expand selected nodes Y
+      setNodeTrans(ROT_OPTS);
+      setNodeTarget("graph");
+      await animate(scope.current, { rotateX: 0 }, ROT_OPTS);
     }
 
     setIsAnimating(false);
-  }, [mode, isAnimating, animate, scope]);
+  }, [phase, isAnimating, animate, scope]);
 
   // Space to toggle
   useEffect(() => {
@@ -214,7 +244,7 @@ export function EnvDiffCanvas() {
               stroke="oklch(0.28 0.02 270)"
               strokeDasharray="6 4"
               strokeWidth={1}
-              transition={{ duration: 0.3, delay: isEnv ? 0.88 : 0 }}
+              transition={{ duration: 0.3 }}
               x1={130}
               x2={760}
               y1={ENV_LINE_Y}
@@ -222,12 +252,16 @@ export function EnvDiffCanvas() {
             />
           </svg>
 
-          {/* Selected nodes (hero-animate between graph pos ↔ env line) */}
+          {/* Selected nodes — 3-phase position animation:
+              graph → compressed (Y to center, synced with rotation)
+              compressed → env (X to evenly-spaced env positions)
+              Reverse: env → compressed → graph */}
           {GRAPH_NODES.filter((n) => SELECTED_IDS.includes(n.id)).map(
             (node) => {
               const envPos = ENV_LINE[node.id];
-              const targetX = isEnv && envPos ? envPos.x : node.x;
-              const targetY = isEnv && envPos ? envPos.y : node.y;
+              const targetX =
+                nodeTarget === "env" && envPos ? envPos.x : node.x;
+              const targetY = nodeTarget === "graph" ? node.y : ENV_LINE_Y;
 
               return (
                 <motion.div
@@ -235,8 +269,8 @@ export function EnvDiffCanvas() {
                   className="absolute -translate-x-1/2 -translate-y-1/2"
                   key={node.id}
                   transition={{
-                    duration: 0.75,
-                    ease: [0.4, 0, 0.15, 1],
+                    duration: nodeTrans.duration,
+                    ease: nodeTrans.ease,
                   }}
                 >
                   <div
@@ -275,7 +309,7 @@ export function EnvDiffCanvas() {
                       height: pos.y - 20,
                       transform: "translateX(-50%)",
                     }}
-                    transition={{ duration: 0.3, delay: 0.88 + i * 0.04 }}
+                    transition={{ duration: 0.3, delay: i * 0.04 }}
                   >
                     <div className="flex-1" />
 
@@ -292,7 +326,7 @@ export function EnvDiffCanvas() {
                             boxShadow: `0 2px 12px oklch(0.3 0.1 ${v.hue} / 0.15)`,
                           }}
                           transition={{
-                            delay: 0.9 + i * 0.04 + (count - 1 - j) * 0.1,
+                            delay: i * 0.04 + (count - 1 - j) * 0.1,
                             duration: 0.35,
                             ease: [0, 0, 0.2, 1],
                           }}
@@ -320,7 +354,7 @@ export function EnvDiffCanvas() {
                       className="mt-2 h-3 w-px origin-bottom"
                       initial={{ scaleY: 0 }}
                       style={{ background: "oklch(0.3 0.02 270)" }}
-                      transition={{ delay: 0.88 + i * 0.04, duration: 0.25 }}
+                      transition={{ delay: i * 0.04, duration: 0.25 }}
                     />
                   </motion.div>
                 );
